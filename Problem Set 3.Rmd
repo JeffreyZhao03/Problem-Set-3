@@ -164,4 +164,4 @@ test_predictions <- predict(tree, cars_fct = testing)
 test_rmse <- sqrt(mean((test_predictions - testing$Price)^2))
 ```
 
-A lower RMSE for our training data indicates that there's less error and a more precise predictions. A larger RMSE for our testing data indicates that there's more error and less precise predictions. 
+A lower RMSE for our training data indicates that there's less error and a more precise predictions. A larger RMSE for our testing data indicates that there's more error and less precise predictions. Our model predicts things better with more features, but we can take out less important ones. What this means for CorollaCrowd is that it works better on training data, but it may not do the same for new data sets that come out. For example, these new datasets could be more Corolla data coming in. 
