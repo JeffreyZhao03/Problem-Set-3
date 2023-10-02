@@ -1,0 +1,167 @@
+---
+title: "Problem Set 3"
+author: "Jeffrey Zhao"
+date: "2023-09-25"
+output: html_document
+---
+
+
+## Step 1
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rpart)
+library(glmnet)
+library(rlang)
+library(lubridate)
+library(caret)
+library(dummy)
+library(gamlr)
+library(rmarkdown)
+library(rpart)
+library(rpart.plot)
+library(iml)
+library(vip)
+```
+
+## Step 2
+
+This document has a total of 1,436 observations and 39 columns with different features. There are 36 numeric data types. There are 3 categorical data types. 
+
+```{r}
+cars = read_csv("ToyotaCorolla.csv")
+glimpse(cars)
+```
+
+
+
+```{r}
+cars = cars %>%
+  select (-Id, -Model, -Mfg_Month, -Cylinders) %>%  
+  rename(Age = Age_08_04)
+```
+
+It would benefit us if our features were better represented. For example, we can change some of the features to nominal data types. After changing them into that, we can change them into factor data. This helps us determine if there are any missing values in the data set.  
+
+
+```{r}
+cars_fct =cars %>% 
+  select(-Price, -Age, -KM, -HP, -CC, -Weight, -Quarterly_Tax) %>%
+  mutate_all(.funs = factor)
+  
+cars_num = cars %>% 
+  select(Price, Age, KM, HP, CC, Weight, Quarterly_Tax)
+
+
+cars= bind_cols(cars_num, cars_fct)  
+```
+ 
+There are no missing values for each feature, so we don't have to put values in.  
+
+```{r}
+summary(cars_num)
+```
+
+
+## Step 3
+```{r}
+lm_Price=train(Price ~ .,
+               data =cars, 
+               method = "lm")
+
+lm_Price
+      
+```
+
+
+
+
+```{r}
+summary(lm_Price)
+```
+
+
+
+## Step 4
+```{r}
+caret::featurePlot(keep(cars, is.numeric), cars$Price, plot = "scatter")
+```
+
+
+
+
+## Step 5 
+```{r}
+cars %>% 
+  keep(is.numeric) %>% 
+  ggpairs()
+```
+
+
+## Step 6
+```{r}
+cars_dum = dummy(cars, int = TRUE)
+cars_num = cars %>% 
+  keep(is.numeric)
+cars = bind_cols(cars_num, cars_dum)
+rm(cars_dum, cars_num)
+```
+
+```{r}
+set.seed(4532)
+samp = createDataPartition(cars$Price, p=0.7, list =FALSE)
+training = cars[samp, ]
+testing = cars [-samp, ]
+rm(samp)
+```
+
+
+
+## Step 7
+```{r}
+train_ctrl =trainControl(method = "repeatedcv", number =20, repeats =10)
+tree =train(Price ~ .,
+            data= training, 
+            method= "rpart",
+            trControl = train_ctrl,
+            tuneGrid= expand.grid(cp = seq(0.0, 0.1, 0.01)))
+            control =rpart.control(method = "anova", minsplit =1, minibucket =1)
+tree
+```
+
+## Step 8 
+```{r}
+lm_model <- lm(Price ~ ., data = cars)
+
+# Calculate feature importance
+vip::vip(lm_model)
+```
+
+The features with the most importance would be KM, Mfg_Year_2001, and Automatic.The featurs that may be ok to remove would be quarterly tax and HP. 
+
+## Step 9 
+```{r}
+selected_features <- c("Mfg_Year_2001", "KM")
+
+training_subset <- training[, c(selected_features)]
+
+
+train_ctrl =trainControl(method = "repeatedcv", number =20, repeats =10)
+tree =train(Price ~ .,
+            data= training, 
+            method= "rpart",
+            trControl = train_ctrl,
+            tuneGrid= expand.grid(cp = seq(0.0, 0.1, 0.01)))
+            control =rpart.control(method = "anova", minsplit =1, minibucket =1)
+tree
+```
+
+## Step 10
+```{r}
+test_predictions <- predict(tree, cars_fct = testing)
+test_rmse <- sqrt(mean((test_predictions - testing$Price)^2))
+```
+
+A lower RMSE for our training data indicates that there's less error and a more precise predictions. A larger RMSE for our testing data indicates that there's more error and less precise predictions. 
